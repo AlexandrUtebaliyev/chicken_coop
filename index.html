@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Готовность марок</title>
+  <meta name="description" content="Готовность марок металлоконструкций и комплектность по птичникам" />
+  <meta name="theme-color" content="#14181f" />
+
+  <!-- iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Готовность марок" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="topbar" id="topbar">
+      <button class="icon-btn" id="back-btn" type="button" hidden aria-label="Назад"></button>
+      <h1 class="topbar-title" id="topbar-title">Готовность марок</h1>
+      <button class="icon-btn" id="refresh-btn" type="button" aria-label="Обновить"></button>
+    </header>
+
+    <div class="offline-banner" id="offline-banner" hidden></div>
+
+    <main class="screen" id="screen" tabindex="-1"></main>
+
+    <nav class="tabbar" id="tabbar">
+      <a class="tab-item" href="#/" data-tab="summary">
+        <span class="tab-icon" data-icon="summary"></span>
+        <span class="tab-label">Сводка</span>
+      </a>
+      <a class="tab-item" href="#/marks" data-tab="marks">
+        <span class="tab-icon" data-icon="marks"></span>
+        <span class="tab-label">Марки</span>
+      </a>
+      <a class="tab-item" href="#/houses" data-tab="houses">
+        <span class="tab-icon" data-icon="houses"></span>
+        <span class="tab-label">Птичники</span>
+      </a>
+    </nav>
+  </div>
+
+  <script type="module" src="app.js"></script>
+  <script src="sw-register.js"></script>
+</body>
+</html>

@@ -1,0 +1,955 @@
+/* Готовность марок — стили. Тёмная/светлая тема через CSS-переменные. */
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --font-ui: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, Menlo, monospace;
+
+  --bg: #f4f5f7;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #e9eaee;
+  --text: #16181d;
+  --text-muted: #5b616e;
+  --border: #d7dae0;
+  --accent: #2563eb;
+  --accent-text: #ffffff;
+
+  --status-not-started: #5b616e;
+  --status-not-started-bg: #e3e5ea;
+  --status-making: #b45309;
+  --status-making-bg: #fde8c8;
+  --status-painting: #7c3aed;
+  --status-painting-bg: #ece3fc;
+  --status-partial: #1d4ed8;
+  --status-partial-bg: #dbe6fd;
+  --status-done: #15803d;
+  --status-done-bg: #d9f2e1;
+  --status-shipped: #0f766e;
+  --status-shipped-bg: #d6f0ed;
+  --status-error: #b91c1c;
+  --status-error-bg: #fbdede;
+
+  --shadow: 0 1px 3px rgba(20, 24, 31, 0.08), 0 1px 2px rgba(20, 24, 31, 0.06);
+  --radius: 14px;
+  --radius-sm: 10px;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --bg-elevated: #1e2127;
+    --bg-sunken: #0f1114;
+    --text: #e9eaee;
+    --text-muted: #9aa0ab;
+    --border: #2d313a;
+    --accent: #5b8def;
+    --accent-text: #0b1220;
+
+    --status-not-started: #aeb4bf;
+    --status-not-started-bg: #2a2e36;
+    --status-making: #f4a93a;
+    --status-making-bg: #3a2c12;
+    --status-painting: #b794fb;
+    --status-painting-bg: #2d2140;
+    --status-partial: #7ea6f7;
+    --status-partial-bg: #1b2a44;
+    --status-done: #5fd38a;
+    --status-done-bg: #11301e;
+    --status-shipped: #5fd0c6;
+    --status-shipped-bg: #0f2e2b;
+    --status-error: #ff8080;
+    --status-error-bg: #3a1414;
+
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input, select {
+  font-family: inherit;
+  font-size: 14px;
+  color: inherit;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ---------- Верхняя панель ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 8px 8px 8px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.topbar-title {
+  flex: 1;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.icon-btn:active {
+  background: var(--bg-sunken);
+}
+
+.icon-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.icon-btn.spinning svg {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Офлайн-плашка ---------- */
+
+.offline-banner {
+  flex-shrink: 0;
+  background: var(--status-making-bg);
+  color: var(--status-making);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px 12px;
+}
+
+/* ---------- Экран ---------- */
+
+.screen {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 16px) 12px;
+  outline: none;
+}
+
+/* ---------- Нижняя панель вкладок ---------- */
+
+.tabbar {
+  display: flex;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px 0;
+  text-decoration: none;
+  color: var(--text-muted);
+}
+
+.tab-item.active {
+  color: var(--accent);
+}
+
+.tab-icon svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.tab-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.app.detail .tabbar {
+  display: none;
+}
+
+/* ---------- Общие элементы ---------- */
+
+.card {
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.card.pressable {
+  cursor: pointer;
+}
+
+.card.pressable:active {
+  background: var(--bg-sunken);
+}
+
+h2.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 18px 2px 8px;
+  color: var(--text-muted);
+}
+
+h2.section-title:first-child {
+  margin-top: 2px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px 16px;
+  font-size: 14px;
+}
+
+.error-state {
+  text-align: center;
+  padding: 40px 16px;
+}
+
+.error-state .error-icon svg {
+  width: 48px;
+  height: 48px;
+  color: var(--status-error);
+  margin-bottom: 12px;
+}
+
+.error-state p {
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.btn:active {
+  opacity: 0.85;
+}
+
+.btn.secondary {
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+
+.spinner-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ---------- Сводка: плитки этапов ---------- */
+
+.stage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.stage-tile {
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  border-left: 5px solid var(--stage-color, var(--accent));
+}
+
+.stage-tile .stage-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.stage-tile .stage-pct {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--stage-color, var(--text));
+  line-height: 1.1;
+}
+
+.stage-tile .stage-detail {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ---------- Чипы статусов ---------- */
+
+.chip-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  border: 1px solid transparent;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.chip.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.chip.chip-error {
+  color: var(--status-error);
+}
+
+.chip.chip-error.active {
+  background: var(--status-error);
+  color: #fff;
+}
+
+/* ---------- Мини-ряд птичников на сводке ---------- */
+
+.house-mini-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.house-mini {
+  flex-shrink: 0;
+  width: 78px;
+  text-align: center;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 10px 6px;
+  cursor: pointer;
+}
+
+.house-mini .house-mini-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.house-mini .house-mini-pct {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--status-done);
+  margin-top: 2px;
+}
+
+/* ---------- Группы ---------- */
+
+.group-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+.group-row .group-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 15px;
+  width: 54px;
+  flex-shrink: 0;
+}
+
+.group-row .group-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-row .group-name {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-row .group-stats {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.group-row .group-pct {
+  font-size: 17px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ---------- Поиск и фильтры (Марки) ---------- */
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  min-height: 48px;
+  margin-bottom: 10px;
+}
+
+.search-box svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.search-box input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  min-height: 46px;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.select-box {
+  flex: 1;
+  min-height: 48px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  padding: 0 10px;
+}
+
+/* ---------- Карточка марки (список) ---------- */
+
+.mark-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+.mark-card .mark-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.mark-card .mark-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mark-card .mark-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.mark-card .mark-name {
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 6px;
+}
+
+.mark-card .mark-order-line {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.mark-card .mark-error-line {
+  font-size: 12.5px;
+  color: var(--status-error);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.mark-card .mark-pct {
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 46px;
+  text-align: right;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---------- Слоистая полоска прогресса ---------- */
+
+.stack-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.stack-bar > span {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+}
+
+/* ---------- Птичники (список) ---------- */
+
+.house-card {
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.house-card .house-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.house-card .house-card-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.house-card .house-card-weight {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.house-stage-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.house-stage-row .house-stage-label {
+  width: 78px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.house-stage-row .bar-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.house-stage-row .bar-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.house-stage-row .house-stage-pct {
+  width: 38px;
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.house-card .house-card-missing {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* ---------- Детали птичника ---------- */
+
+.segmented {
+  display: flex;
+  background: var(--bg-sunken);
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 10px;
+}
+
+.segmented button {
+  flex: 1;
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.house-mark-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 10px 14px;
+  margin-bottom: 7px;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+.house-mark-row .state-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.house-mark-row .mark-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.house-mark-row .mark-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.house-mark-row .mark-name {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.house-mark-row .need-have {
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ---------- Карточка марки (детали) ---------- */
+
+.mark-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.ring-wrap {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+}
+
+.ring-wrap svg {
+  width: 84px;
+  height: 84px;
+  transform: rotate(-90deg);
+}
+
+.ring-wrap .ring-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.mark-detail-head .mark-detail-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+.mark-detail-head .mark-detail-name {
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.mark-detail-head .mark-detail-group {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.stage-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.stage-detail-row .stage-detail-label {
+  width: 90px;
+  font-size: 13px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.stage-detail-row .bar-track {
+  flex: 1;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.stage-detail-row .bar-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.stage-detail-row .stage-detail-qty {
+  width: 70px;
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.weight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.weight-item {
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.weight-item .weight-value {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.weight-item .weight-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.note-line {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0;
+}
+
+.note-line.error {
+  color: var(--status-error);
+  font-weight: 600;
+}
+
+.houses-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.house-grid-cell {
+  border-radius: var(--radius-sm);
+  padding: 8px 2px;
+  text-align: center;
+}
+
+.house-grid-cell .cell-house {
+  font-size: 10.5px;
+  opacity: 0.85;
+}
+
+.house-grid-cell .cell-value {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.history-day {
+  margin-bottom: 10px;
+}
+
+.history-day .history-date {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin: 10px 0 6px;
+}
+
+.history-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 9px 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  min-height: 44px;
+}
+
+.history-entry .history-stage {
+  flex-shrink: 0;
+  min-width: 90px;
+  font-weight: 600;
+}
+
+.history-entry .history-qty {
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 44px;
+  text-align: right;
+}
+
+.history-entry .history-worker {
+  flex: 1;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 560px) {
+  .screen {
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
