@@ -665,9 +665,15 @@ h2.section-title:first-child {
   overflow: hidden;
 }
 
+/* .bar-fill всегда обычный <span> внутри .bar-track — без display: block браузер
+   игнорирует заданные ему width/height, т.к. это строчный элемент. */
+.bar-fill {
+  display: block;
+  border-radius: 999px;
+}
+
 .house-stage-row .bar-fill {
   height: 100%;
-  border-radius: 999px;
 }
 
 .house-stage-row .house-stage-pct {
@@ -725,16 +731,16 @@ h2.section-title:first-child {
   cursor: pointer;
 }
 
-.house-mark-row .state-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
 .house-mark-row .mark-main {
   flex: 1;
   min-width: 0;
+}
+
+.house-mark-row .mark-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .house-mark-row .mark-code {
@@ -749,12 +755,24 @@ h2.section-title:first-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-bottom: 6px;
 }
 
 .house-mark-row .need-have {
   font-size: 13px;
   font-weight: 600;
   flex-shrink: 0;
+}
+
+.house-mark-row .bar-track {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.house-mark-row .bar-fill {
+  height: 100%;
 }
 
 /* ---------- Карточка марки (детали) ---------- */
@@ -831,7 +849,6 @@ h2.section-title:first-child {
 
 .stage-detail-row .bar-fill {
   height: 100%;
-  border-radius: 999px;
 }
 
 .stage-detail-row .stage-detail-qty {
@@ -899,6 +916,103 @@ h2.section-title:first-child {
 .house-grid-cell .cell-value {
   font-size: 14px;
   font-weight: 700;
+}
+
+.sostav-summary {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 4px 0 8px;
+}
+
+.part-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 10px 14px;
+  margin-bottom: 7px;
+  min-height: 48px;
+}
+
+.part-row .part-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.part-row .part-profile {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.part-row .part-number {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.part-row .part-dims {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.part-row .part-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.part-row .part-qty {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.part-drawing-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--accent);
+}
+
+.part-drawing-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+.drawing-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  margin-top: 10px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.drawing-link-btn svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .history-day {

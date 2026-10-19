@@ -2,7 +2,7 @@
 // Запросы к docs.google.com (сама таблица) сюда НЕ попадают — их кэширует
 // отдельно sheet.js через localStorage, чтобы контролировать свежесть данных.
 
-const CACHE_NAME = 'cc-shell-v1';
+const CACHE_NAME = 'cc-shell-v2';
 
 const SHELL_FILES = [
   './',
@@ -19,6 +19,8 @@ const SHELL_FILES = [
   './icons/icon-512.png',
   './icons/maskable-512.png',
   './icons/apple-touch-icon.png',
+  './drawings/assembly_index.json',
+  './drawings/parts_index.json',
 ];
 
 self.addEventListener('install', (event) => {

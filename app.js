@@ -1,9 +1,10 @@
 // Маршруты и экраны. DOM-слой — расчёты лежат в model.js.
 
-import { STATUS_ORDER, STAGE_KEYS, STAGE_LABELS } from './config.js';
+import { STATUS_ORDER, STAGE_KEYS, STAGE_LABELS, DRAWINGS } from './config.js';
 import {
   parseReadinessData,
   parseJournalData,
+  parseSostavData,
   computeOverallStats,
   computeGroups,
   computeHouses,
@@ -15,6 +16,7 @@ import {
 import {
   loadReadinessCsv,
   loadJournalCsv,
+  loadSostavCsv,
   formatOfflineTime,
   setupAutoRefresh,
   saveFilters,
@@ -34,6 +36,12 @@ const state = {
   journalEntries: null,
   journalLoading: false,
   journalLoadError: null,
+  sostavByMark: null,
+  sostavLoading: false,
+  sostavLoadError: null,
+  assemblyDrawings: null,
+  partDrawings: null,
+  drawingsLoading: false,
   offline: false,
   offlineTime: null,
   loadErrorMessage: null,
@@ -61,6 +69,8 @@ function icon(name) {
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>';
     case 'warning':
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></svg>';
+    case 'drawing':
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
     case 'wifi-off':
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>';
     default:
@@ -186,6 +196,45 @@ async function ensureJournalLoaded() {
     state.journalLoadError = e.message || 'История недоступна.';
   } finally {
     state.journalLoading = false;
+    const route = parseRoute();
+    if (route.name === 'mark') render();
+  }
+}
+
+async function ensureDrawingsLoaded() {
+  if (state.assemblyDrawings !== null || state.drawingsLoading) return;
+  state.drawingsLoading = true;
+  try {
+    const [assemblyRes, partsRes] = await Promise.all([
+      fetch(DRAWINGS.assemblyIndex),
+      fetch(DRAWINGS.partsIndex),
+    ]);
+    state.assemblyDrawings = assemblyRes.ok ? await assemblyRes.json() : {};
+    state.partDrawings = partsRes.ok ? await partsRes.json() : {};
+  } catch (e) {
+    state.assemblyDrawings = {};
+    state.partDrawings = {};
+  } finally {
+    state.drawingsLoading = false;
+    const route = parseRoute();
+    if (route.name === 'mark') render();
+  }
+}
+
+async function ensureSostavLoaded() {
+  if (state.sostavByMark !== null || state.sostavLoading) return;
+  state.sostavLoading = true;
+  render();
+  try {
+    const result = await loadSostavCsv();
+    const parsed = parseSostavData(result.csv);
+    state.sostavByMark = parsed.byMark;
+    state.sostavLoadError = null;
+  } catch (e) {
+    state.sostavByMark = new Map();
+    state.sostavLoadError = e.message || 'Состав недоступен.';
+  } finally {
+    state.sostavLoading = false;
     const route = parseRoute();
     if (route.name === 'mark') render();
   }
@@ -475,13 +524,16 @@ function renderHouses() {
 
 function renderHouseMarkRow(r) {
   const color = r.state === 'full' ? 'var(--status-done)' : r.state === 'partial' ? 'var(--status-making)' : 'var(--status-not-started)';
+  const pct = r.need > 0 ? Math.min(100, Math.round((r.have / r.need) * 100)) : 0;
   return `<a class="house-mark-row" href="#/mark/${encodeURIComponent(r.mark)}">
-    <span class="state-dot" style="background:${color}"></span>
     <div class="mark-main">
-      <div class="mark-code">${escapeHtml(r.mark)}</div>
+      <div class="mark-row-top">
+        <span class="mark-code">${escapeHtml(r.mark)}</span>
+        <span class="need-have">${r.have} / ${r.need}</span>
+      </div>
       <div class="mark-name">${escapeHtml(r.name)}</div>
+      <div class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${color}"></span></div>
     </div>
-    <div class="need-have">${r.have} / ${r.need}</div>
   </a>`;
 }
 
@@ -581,6 +633,48 @@ function renderHouseGridCell(hc, m, idx) {
   </div>`;
 }
 
+function renderAssemblyDrawingLink(markCode) {
+  const drawing = state.assemblyDrawings ? state.assemblyDrawings[markCode] : null;
+  if (!drawing) return '';
+  return `<a class="drawing-link-btn" href="${escapeHtml(drawing.viewUrl)}" target="_blank" rel="noopener">
+    ${icon('drawing')}<span>Чертёж марки</span>
+  </a>`;
+}
+
+function renderPartRow(p) {
+  const dims = [p.width, p.length].filter((v) => v != null).map((v) => formatQty(v)).join('×');
+  const metaBits = [dims ? `${dims} мм` : '', p.steelGrade].filter(Boolean).join(' · ');
+  const drawing = p.partNumber && state.partDrawings ? state.partDrawings[p.partNumber] : null;
+  return `<div class="part-row">
+    <div class="part-main">
+      <div class="part-profile">${escapeHtml(p.profile || p.partNumber || '—')}${p.partNumber ? ` <span class="part-number">№${escapeHtml(p.partNumber)}</span>` : ''}</div>
+      ${metaBits ? `<div class="part-dims">${escapeHtml(metaBits)}</div>` : ''}
+      ${p.note ? `<div class="part-note">${escapeHtml(p.note)}</div>` : ''}
+    </div>
+    <div class="part-qty">${formatQty(p.qty)} шт${p.unitMass != null ? ` · ${formatWeight(p.unitMass)}` : ''}</div>
+    ${drawing ? `<a class="part-drawing-btn" href="${escapeHtml(drawing.viewUrl)}" target="_blank" rel="noopener" aria-label="Чертёж детали ${escapeHtml(p.partNumber)}">${icon('drawing')}</a>` : ''}
+  </div>`;
+}
+
+function renderSostavSection(markCode) {
+  if (state.sostavLoading && state.sostavByMark === null) {
+    return '<div class="spinner-block"><div class="spinner"></div></div>';
+  }
+  if (!state.sostavByMark) {
+    return `<div class="empty-state">${escapeHtml(state.sostavLoadError || 'Состав недоступен.')}</div>`;
+  }
+
+  const comp = state.sostavByMark.get(markCode);
+  if (!comp || comp.parts.length === 0) {
+    return '<div class="empty-state">Состав не найден в таблице спецификации.</div>';
+  }
+
+  return `
+    <div class="sostav-summary">Деталей в составе: ${comp.parts.length}</div>
+    ${comp.parts.map(renderPartRow).join('')}
+  `;
+}
+
 function renderHistorySection(markCode) {
   if (state.journalLoading && state.journalEntries === null) {
     return '<div class="spinner-block"><div class="spinner"></div></div>';
@@ -617,6 +711,8 @@ function renderMarkCard(markCode) {
   }
 
   ensureJournalLoaded();
+  ensureSostavLoaded();
+  ensureDrawingsLoaded();
 
   const pct = Math.round(m.readinessPct * 100);
 
@@ -631,6 +727,7 @@ function renderMarkCard(markCode) {
           <div class="mark-detail-group">Группа: ${escapeHtml(m.group)}</div>
         </div>
       </div>
+      ${renderAssemblyDrawingLink(markCode)}
       ${STAGE_KEYS.map((k) => renderStageDetailRow(k, m)).join('')}
     </div>
 
@@ -643,6 +740,9 @@ function renderMarkCard(markCode) {
       ${m.check ? `<div class="note-line error">Проверка: ${escapeHtml(m.check)}</div>` : ''}
       ${m.note ? `<div class="note-line">Примечание: ${escapeHtml(m.note)}</div>` : ''}
     </div>
+
+    <h2 class="section-title">Состав марки</h2>
+    ${renderSostavSection(markCode)}
 
     <h2 class="section-title">Птичники</h2>
     <div class="card">

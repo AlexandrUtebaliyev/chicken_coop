@@ -18,6 +18,14 @@ export function buildGvizUrl(sheetName, range) {
   );
 }
 
+// Отдельная таблица «Состав марки» (спецификация деталей) — отдельный документ,
+// только для чтения, лист находится автоматически (в документе он один).
+export const SOSTAV_SPREADSHEET_ID = '1N9trmeZmpaDhrSThcVps2aFEKQ-15Yrb';
+
+export function buildSostavGvizUrl() {
+  return `https://docs.google.com/spreadsheets/d/${SOSTAV_SPREADSHEET_ID}/gviz/tq?tqx=out:csv&headers=1`;
+}
+
 // Канонический ключ -> варианты заголовков, как они встречаются в таблице.
 // Сопоставление идёт без учёта регистра, пробелов и знаков препинания (см. model.js: normalizeHeader).
 export const READINESS_COLUMNS = {
@@ -57,6 +65,29 @@ export const JOURNAL_COLUMNS = {
   check: ['Проверка'],
 };
 
+// Лист «Состав марки»: по одной строке «Сборка» на марку (итоги) и
+// по одной строке «Деталь» на каждый элемент в составе марки.
+export const SOSTAV_COLUMNS = {
+  sheetNum: ['Лист'],
+  rowType: ['Сборка/деталь'],
+  name: ['Наименование марки'],
+  mark: ['Марка'],
+  markCount: ['Кол-во марок'],
+  partNumber: ['№ детали'],
+  partQty: ['Кол-во'],
+  profile: ['Профиль'],
+  width: ['Ширина'],
+  length: ['Длина'],
+  unitPartMass: ['Масса 1-ой детали'],
+  totalPartsMass: ['Масса всех деталей'],
+  markMass: ['Масса марки'],
+  allMarksMass: ['Масса всех марок'],
+  steelGrade: ['Марка стали'],
+  note: ['Примечание'],
+};
+
+export const SOSTAV_REQUIRED_KEYS = ['mark', 'rowType'];
+
 export const STATUS = {
   NOT_STARTED: 'Не начато',
   MAKING: 'Изготовление',
@@ -89,7 +120,17 @@ export const CACHE_KEYS = {
   readinessTime: 'cc_readiness_time',
   journalCsv: 'cc_journal_csv',
   journalTime: 'cc_journal_time',
+  sostavCsv: 'cc_sostav_csv',
+  sostavTime: 'cc_sostav_time',
   filters: 'cc_filters',
 };
 
 export const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
+// Чертежи марок и деталей (PDF на Google Диске, доступ по ссылке) — статические
+// индексы «марка/номер детали → ссылка», собранные заранее (drawings/*.json).
+// Если поменяете набор чертежей — пересоберите эти два файла и замените их.
+export const DRAWINGS = {
+  assemblyIndex: './drawings/assembly_index.json',
+  partsIndex: './drawings/parts_index.json',
+};

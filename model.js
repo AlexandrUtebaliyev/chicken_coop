@@ -5,6 +5,8 @@ import {
   READINESS_COLUMNS,
   READINESS_REQUIRED_KEYS,
   JOURNAL_COLUMNS,
+  SOSTAV_COLUMNS,
+  SOSTAV_REQUIRED_KEYS,
   STATUS,
   STAGE_KEYS,
 } from './config.js';
@@ -540,4 +542,77 @@ export function getMarkHistory(entries, mark) {
   });
 
   return filtered;
+}
+
+// ---------- Состав марки (отдельная таблица-спецификация) ----------
+
+export function parseSostavData(csvText, columnsConfig = SOSTAV_COLUMNS) {
+  const rows = parseCsv(csvText).filter((r) => !(r.length === 1 && r[0] === ''));
+  if (rows.length === 0) return { byMark: new Map(), headerRow: [] };
+
+  const headerRow = rows[0];
+  const { map } = mapHeaders(headerRow, columnsConfig);
+
+  const missingKeys = SOSTAV_REQUIRED_KEYS.filter((k) => !(k in map));
+  if (missingKeys.length > 0) {
+    const labelByKey = {};
+    for (const [key, variants] of Object.entries(columnsConfig)) labelByKey[key] = variants[0];
+    throw new HeaderError(
+      missingKeys,
+      missingKeys.map((k) => labelByKey[k] || k),
+      headerRow.filter((h) => h && h.trim() !== '')
+    );
+  }
+
+  const dataRows = rows.slice(1);
+  const byMark = new Map();
+
+  for (const r of dataRows) {
+    const markVal = (r[map.mark] || '').trim();
+    if (!markVal) continue;
+
+    if (!byMark.has(markVal)) {
+      byMark.set(markVal, {
+        mark: markVal,
+        name: '',
+        markCount: 0,
+        markMass: 0,
+        allMarksMass: 0,
+        note: '',
+        parts: [],
+      });
+    }
+    const entry = byMark.get(markVal);
+
+    const name = map.name !== undefined ? (r[map.name] || '').trim() : '';
+    if (name) entry.name = name;
+
+    const rowType = map.rowType !== undefined ? (r[map.rowType] || '').trim() : '';
+
+    if (rowType === 'Сборка') {
+      entry.markCount = map.markCount !== undefined ? parseNumber(r[map.markCount]) ?? 0 : 0;
+      entry.markMass = map.markMass !== undefined ? parseNumber(r[map.markMass]) ?? 0 : 0;
+      entry.allMarksMass = map.allMarksMass !== undefined ? parseNumber(r[map.allMarksMass]) ?? 0 : 0;
+      const assemblyNote = map.note !== undefined ? (r[map.note] || '').trim() : '';
+      if (assemblyNote) entry.note = assemblyNote;
+    } else if (rowType === 'Деталь') {
+      entry.parts.push({
+        partNumber: map.partNumber !== undefined ? (r[map.partNumber] || '').trim() : '',
+        qty: map.partQty !== undefined ? parseNumber(r[map.partQty]) ?? 0 : 0,
+        profile: map.profile !== undefined ? (r[map.profile] || '').trim() : '',
+        width: map.width !== undefined ? parseNumber(r[map.width]) : null,
+        length: map.length !== undefined ? parseNumber(r[map.length]) : null,
+        unitMass: map.unitPartMass !== undefined ? parseNumber(r[map.unitPartMass]) : null,
+        totalMass: map.totalPartsMass !== undefined ? parseNumber(r[map.totalPartsMass]) : null,
+        steelGrade: map.steelGrade !== undefined ? (r[map.steelGrade] || '').trim() : '',
+        note: map.note !== undefined ? (r[map.note] || '').trim() : '',
+      });
+    }
+  }
+
+  return { byMark, headerRow };
+}
+
+export function getMarkComposition(byMark, mark) {
+  return byMark.get(mark) || null;
 }

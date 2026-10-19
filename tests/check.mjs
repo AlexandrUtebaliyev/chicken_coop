@@ -9,6 +9,7 @@ import path from 'node:path';
 import {
   parseReadinessData,
   parseJournalData,
+  parseSostavData,
   computeOverallStats,
   computeGroups,
   computeHouses,
@@ -150,6 +151,33 @@ if (k1History.length > 1) {
   const first = parseRuDate(k1History[0].date).getTime();
   const last = parseRuDate(k1History[k1History.length - 1].date).getTime();
   check('История К-1: новые сверху (по дате)', first >= last, true);
+}
+
+console.log('\n--- Состав марки (отдельная таблица-спецификация) ---');
+const sostavCsv = readFileSync(
+  path.join(__dirname, 'fixtures', 'sostav_2026-10-19.csv'),
+  'utf-8'
+);
+const { byMark: sostav } = parseSostavData(sostavCsv);
+check('Состав: марок с деталями', sostav.size > 0, true);
+
+const b6 = sostav.get('Б-6');
+if (b6) {
+  check('Б-6: число деталей в составе', b6.parts.length, 3);
+  check('Б-6: есть профиль ДВУТAВР18Б1', b6.parts.some((p) => p.profile === 'ДВУТAВР18Б1'), true);
+} else {
+  failCount += 1;
+  console.log('  FAIL Состав Б-6 не найден');
+}
+
+const sh12Sostav = sostav.get('Ш1-2');
+if (sh12Sostav) {
+  check('Ш1-2: число деталей в составе', sh12Sostav.parts.length, 1);
+  check('Ш1-2: профиль детали', sh12Sostav.parts[0].profile, 'PL12*90');
+  check('Ш1-2: кол-во детали', sh12Sostav.parts[0].qty, 1);
+} else {
+  failCount += 1;
+  console.log('  FAIL Состав Ш1-2 не найден');
 }
 
 console.log(`\n=== Итог: ${okCount} OK, ${failCount} FAIL ===`);

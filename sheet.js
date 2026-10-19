@@ -6,6 +6,7 @@ import {
   READINESS_RANGE,
   JOURNAL_RANGE,
   buildGvizUrl,
+  buildSostavGvizUrl,
   CACHE_KEYS,
   REFRESH_INTERVAL_MS,
 } from './config.js';
@@ -66,8 +67,7 @@ function readCache(csvKey, timeKey) {
   return null;
 }
 
-async function loadSheet(sheetName, range, csvKey, timeKey) {
-  const url = buildGvizUrl(sheetName, range);
+async function loadFromUrl(url, csvKey, timeKey) {
   try {
     const csv = await fetchCsv(url);
     saveCache(csvKey, timeKey, csv);
@@ -81,6 +81,10 @@ async function loadSheet(sheetName, range, csvKey, timeKey) {
   }
 }
 
+function loadSheet(sheetName, range, csvKey, timeKey) {
+  return loadFromUrl(buildGvizUrl(sheetName, range), csvKey, timeKey);
+}
+
 export function loadReadinessCsv() {
   return loadSheet(
     SHEET_NAMES.readiness,
@@ -92,6 +96,12 @@ export function loadReadinessCsv() {
 
 export function loadJournalCsv() {
   return loadSheet(SHEET_NAMES.journal, JOURNAL_RANGE, CACHE_KEYS.journalCsv, CACHE_KEYS.journalTime);
+}
+
+// Отдельная таблица «Состав марки» — другой документ, грузится лениво
+// (как «Журнал»), с тем же офлайн-кэшем в localStorage.
+export function loadSostavCsv() {
+  return loadFromUrl(buildSostavGvizUrl(), CACHE_KEYS.sostavCsv, CACHE_KEYS.sostavTime);
 }
 
 export function formatOfflineTime(ts) {
