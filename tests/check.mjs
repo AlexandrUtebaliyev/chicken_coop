@@ -10,6 +10,7 @@ import {
   parseReadinessData,
   parseJournalData,
   parseSostavData,
+  computePartsIndex,
   computeOverallStats,
   computeGroups,
   computeHouses,
@@ -178,6 +179,31 @@ if (sh12Sostav) {
 } else {
   failCount += 1;
   console.log('  FAIL Состав Ш1-2 не найден');
+}
+
+console.log('\n--- Детали: обратный индекс (деталь → марки) ---');
+const partsIndex = computePartsIndex(sostav);
+check('Детали: всего номеров деталей', partsIndex.size, 338);
+
+const part68 = partsIndex.get('68');
+if (part68) {
+  const marks68 = part68.usages.map((u) => u.mark).sort();
+  check('Деталь №68: встречается в 3 марках', part68.usages.length, 3);
+  check('Деталь №68: марки верные', marks68.join(','), 'А1-1,А1-2,А1-8');
+} else {
+  failCount += 1;
+  console.log('  FAIL Деталь №68 не найдена в индексе');
+}
+
+// Ш1-2 — марка из единственной детали (см. фикстуру): должна тоже попасть в индекс.
+const sh12Part = sh12Sostav ? sh12Sostav.parts[0] : null;
+if (sh12Part) {
+  const partEntry = partsIndex.get(sh12Part.partNumber);
+  check(
+    'Деталь марки Ш1-2 (единственная) есть в индексе и содержит Ш1-2',
+    !!partEntry && partEntry.usages.some((u) => u.mark === 'Ш1-2'),
+    true
+  );
 }
 
 console.log(`\n=== Итог: ${okCount} OK, ${failCount} FAIL ===`);

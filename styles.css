@@ -550,6 +550,17 @@ h2.section-title:first-child {
   margin-bottom: 4px;
 }
 
+.part-drawing-indicator {
+  display: inline-flex;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.part-drawing-indicator svg {
+  width: 15px;
+  height: 15px;
+}
+
 .mark-card .mark-code {
   font-family: var(--font-mono);
   font-weight: 700;

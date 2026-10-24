@@ -8,6 +8,7 @@ import {
   computeOverallStats,
   computeGroups,
   computeHouses,
+  computePartsIndex,
   getMarkHistory,
   naturalCompare,
   matchSearch,
@@ -49,6 +50,8 @@ const state = {
   filters: null,
   houseViewMode: 'missing',
   houseSearch: '',
+  partsSearch: '',
+  partsSort: 'number',
 };
 
 // ---------- Иконки (inline SVG) ----------
@@ -67,6 +70,8 @@ function icon(name) {
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>';
     case 'houses':
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>';
+    case 'parts':
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/></svg>';
     case 'warning':
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></svg>';
     case 'drawing':
@@ -100,6 +105,22 @@ function formatWeight(kg) {
     return `${(kg / 1000).toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} т`;
   }
   return `${kg.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} кг`;
+}
+
+function pluralRu(n, one, few, many) {
+  const n10 = n % 10;
+  const n100 = n % 100;
+  if (n10 === 1 && n100 !== 11) return one;
+  if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) return few;
+  return many;
+}
+
+function pluralMarks(n) {
+  return pluralRu(n, 'марка', 'марки', 'марок');
+}
+
+function pluralParts(n) {
+  return pluralRu(n, 'деталь', 'детали', 'деталей');
 }
 
 const STATUS_VAR_KEY = {
@@ -145,6 +166,10 @@ function parseRoute() {
   }
   if (segments[0] === 'mark') {
     return { name: 'mark', params: { mark: decodeURIComponent(segments[1] || '') }, query };
+  }
+  if (segments[0] === 'parts') return { name: 'parts', params: {}, query };
+  if (segments[0] === 'part') {
+    return { name: 'part', params: { partNumber: decodeURIComponent(segments[1] || '') }, query };
   }
   return { name: 'summary', params: {}, query };
 }
@@ -217,7 +242,7 @@ async function ensureDrawingsLoaded() {
   } finally {
     state.drawingsLoading = false;
     const route = parseRoute();
-    if (route.name === 'mark') render();
+    if (route.name === 'mark' || route.name === 'part') render();
   }
 }
 
@@ -236,7 +261,7 @@ async function ensureSostavLoaded() {
   } finally {
     state.sostavLoading = false;
     const route = parseRoute();
-    if (route.name === 'mark') render();
+    if (route.name === 'mark' || route.name === 'parts' || route.name === 'part') render();
   }
 }
 
@@ -257,22 +282,30 @@ function updateOfflineBanner() {
 }
 
 function updateBackButton(route) {
-  const isDetail = route.name === 'house' || route.name === 'mark';
+  const isDetail = route.name === 'house' || route.name === 'mark' || route.name === 'part';
   backBtn.hidden = !isDetail;
 
-  const titles = { summary: 'Готовность марок', marks: 'Марки', houses: 'Птичники' };
+  const titles = { summary: 'Готовность марок', marks: 'Марки', houses: 'Птичники', parts: 'Детали' };
   if (route.name === 'house') topbarTitleEl.textContent = `Птичник ${route.params.number}`;
   else if (route.name === 'mark') topbarTitleEl.textContent = route.params.mark;
+  else if (route.name === 'part') topbarTitleEl.textContent = `Деталь №${route.params.partNumber}`;
   else topbarTitleEl.textContent = titles[route.name] || 'Готовность марок';
 }
 
 function updateDetailClass(route) {
-  const isDetail = route.name === 'house' || route.name === 'mark';
+  const isDetail = route.name === 'house' || route.name === 'mark' || route.name === 'part';
   appEl.classList.toggle('detail', isDetail);
 }
 
 function updateTabbarActive(route) {
-  const map = { summary: 'summary', marks: 'marks', houses: 'houses', house: 'houses' };
+  const map = {
+    summary: 'summary',
+    marks: 'marks',
+    houses: 'houses',
+    house: 'houses',
+    parts: 'parts',
+    part: 'parts',
+  };
   const active = map[route.name] || null;
   document.querySelectorAll('.tab-item').forEach((el) => {
     el.classList.toggle('active', el.dataset.tab === active);
@@ -670,7 +703,7 @@ function renderSostavSection(markCode) {
   }
 
   return `
-    <div class="sostav-summary">Деталей в составе: ${comp.parts.length}</div>
+    <div class="sostav-summary">В составе: ${comp.parts.length} ${pluralParts(comp.parts.length)}</div>
     ${comp.parts.map(renderPartRow).join('')}
   `;
 }
@@ -756,6 +789,144 @@ function renderMarkCard(markCode) {
   `;
 }
 
+// ---------- Экран: Детали (обратный поиск — в каких марках встречается) ----------
+
+function renderPartListItem(p) {
+  const dims = [p.width, p.length].filter((v) => v != null).map((v) => formatQty(v)).join('×');
+  const metaBits = [dims ? `${dims} мм` : '', p.steelGrade].filter(Boolean).join(' · ');
+  const drawing = state.partDrawings ? state.partDrawings[p.partNumber] : null;
+  return `<a class="mark-card" href="#/part/${encodeURIComponent(p.partNumber)}">
+    <div class="mark-main">
+      <div class="mark-code-row">
+        <span class="mark-code">№${escapeHtml(p.partNumber)}</span>
+        <span class="badge" style="background:var(--bg-sunken);color:var(--text-muted)">${p.usages.length} ${pluralMarks(p.usages.length)}</span>
+        ${drawing ? `<span class="part-drawing-indicator" aria-hidden="true">${icon('drawing')}</span>` : ''}
+      </div>
+      <div class="mark-name">${escapeHtml(p.profile || '—')}</div>
+      ${metaBits ? `<div class="mark-order-line">${escapeHtml(metaBits)}</div>` : ''}
+    </div>
+  </a>`;
+}
+
+function renderPartsListBody() {
+  const partsIndex = computePartsIndex(state.sostavByMark);
+  const search = state.partsSearch;
+  const sort = state.partsSort;
+
+  let list = [...partsIndex.values()];
+  if (search) list = list.filter((p) => matchSearch(search, p.partNumber, p.profile));
+
+  if (sort === 'usage') list.sort((a, b) => b.usages.length - a.usages.length);
+  else list.sort((a, b) => naturalCompare(a.partNumber, b.partNumber));
+
+  const listHtml = list.length
+    ? list.map(renderPartListItem).join('')
+    : '<div class="empty-state">Ничего не найдено.</div>';
+
+  screenEl.innerHTML = `
+    <div class="search-box">
+      ${icon('search')}
+      <input id="part-search" type="search" placeholder="Поиск по номеру детали или профилю" value="${escapeHtml(search)}" />
+    </div>
+    <div class="filter-row">
+      <select id="part-sort" class="select-box">
+        <option value="number" ${sort === 'number' ? 'selected' : ''}>По номеру</option>
+        <option value="usage" ${sort === 'usage' ? 'selected' : ''}>По числу марок</option>
+      </select>
+    </div>
+    <div id="parts-list">${listHtml}</div>
+  `;
+
+  bindPartsListEvents();
+}
+
+function bindPartsListEvents() {
+  const searchInput = document.getElementById('part-search');
+  searchInput.addEventListener('input', (e) => {
+    state.partsSearch = e.target.value;
+    renderPartsListBody();
+    const el = document.getElementById('part-search');
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  });
+
+  document.getElementById('part-sort').addEventListener('change', (e) => {
+    state.partsSort = e.target.value;
+    renderPartsListBody();
+  });
+}
+
+function renderPartsList() {
+  ensureSostavLoaded();
+  ensureDrawingsLoaded();
+
+  if (state.sostavLoading && state.sostavByMark === null) {
+    screenEl.innerHTML = '<div class="spinner-block"><div class="spinner"></div></div>';
+    return;
+  }
+  if (!state.sostavByMark) {
+    screenEl.innerHTML = `<div class="empty-state">${escapeHtml(state.sostavLoadError || 'Состав недоступен.')}</div>`;
+    return;
+  }
+
+  renderPartsListBody();
+}
+
+function renderPartUsageRow(u) {
+  return `<a class="house-mark-row" href="#/mark/${encodeURIComponent(u.mark)}">
+    <div class="mark-main">
+      <div class="mark-row-top">
+        <span class="mark-code">${escapeHtml(u.mark)}</span>
+        <span class="need-have">${formatQty(u.qty)} шт</span>
+      </div>
+      <div class="mark-name">${escapeHtml(u.markName || '')}</div>
+    </div>
+  </a>`;
+}
+
+function renderPartDetail(partNumber) {
+  ensureSostavLoaded();
+  ensureDrawingsLoaded();
+
+  if (state.sostavLoading && state.sostavByMark === null) {
+    screenEl.innerHTML = '<div class="spinner-block"><div class="spinner"></div></div>';
+    return;
+  }
+  if (!state.sostavByMark) {
+    screenEl.innerHTML = `<div class="empty-state">${escapeHtml(state.sostavLoadError || 'Состав недоступен.')}</div>`;
+    return;
+  }
+
+  const partsIndex = computePartsIndex(state.sostavByMark);
+  const p = partsIndex.get(partNumber);
+  if (!p) {
+    screenEl.innerHTML = `<div class="empty-state">Деталь №${escapeHtml(partNumber)} не найдена в составе.</div>`;
+    return;
+  }
+
+  const drawing = state.partDrawings ? state.partDrawings[partNumber] : null;
+  const dims = [p.width, p.length].filter((v) => v != null).map((v) => formatQty(v)).join('×');
+  const metaBits = [dims ? `${dims} мм` : '', p.steelGrade].filter(Boolean).join(' · ');
+  const marksSorted = [...p.usages].sort((a, b) => naturalCompare(a.mark, b.mark));
+
+  screenEl.innerHTML = `
+    <div class="card">
+      <div class="mark-detail-head">
+        <div>
+          <div class="mark-detail-code">№${escapeHtml(partNumber)}</div>
+          <div class="mark-detail-name">${escapeHtml(p.profile || '—')}</div>
+          ${metaBits ? `<div class="mark-detail-group">${escapeHtml(metaBits)}</div>` : ''}
+        </div>
+      </div>
+      ${p.unitMass != null ? `<div class="note-line">Масса одной детали: ${formatWeight(p.unitMass)}</div>` : ''}
+      ${drawing ? `<a class="drawing-link-btn" href="${escapeHtml(drawing.viewUrl)}" target="_blank" rel="noopener">${icon('drawing')}<span>Чертёж детали</span></a>` : ''}
+    </div>
+
+    <h2 class="section-title">Входит в ${marksSorted.length} ${pluralMarks(marksSorted.length)}</h2>
+    ${marksSorted.map(renderPartUsageRow).join('')}
+  `;
+}
+
 // ---------- Диспетчер ----------
 
 function render() {
@@ -785,6 +956,12 @@ function render() {
       break;
     case 'mark':
       renderMarkCard(route.params.mark);
+      break;
+    case 'parts':
+      renderPartsList();
+      break;
+    case 'part':
+      renderPartDetail(route.params.partNumber);
       break;
     default:
       renderSummary();
@@ -824,6 +1001,7 @@ function renderShell() {
   document.querySelectorAll('[data-icon="summary"]').forEach((el) => { el.innerHTML = icon('summary'); });
   document.querySelectorAll('[data-icon="marks"]').forEach((el) => { el.innerHTML = icon('marks'); });
   document.querySelectorAll('[data-icon="houses"]').forEach((el) => { el.innerHTML = icon('houses'); });
+  document.querySelectorAll('[data-icon="parts"]').forEach((el) => { el.innerHTML = icon('parts'); });
 }
 
 async function init() {

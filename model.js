@@ -616,3 +616,30 @@ export function parseSostavData(csvText, columnsConfig = SOSTAV_COLUMNS) {
 export function getMarkComposition(byMark, mark) {
   return byMark.get(mark) || null;
 }
+
+// Обратный индекс: «№ детали» → профиль/размеры + список марок, где эта
+// деталь встречается (один и тот же номер детали часто переиспользуется
+// в нескольких марках — тот же физический элемент).
+export function computePartsIndex(byMark) {
+  const byPart = new Map();
+
+  for (const entry of byMark.values()) {
+    for (const p of entry.parts) {
+      if (!p.partNumber) continue;
+      if (!byPart.has(p.partNumber)) {
+        byPart.set(p.partNumber, {
+          partNumber: p.partNumber,
+          profile: p.profile,
+          width: p.width,
+          length: p.length,
+          unitMass: p.unitMass,
+          steelGrade: p.steelGrade,
+          usages: [],
+        });
+      }
+      byPart.get(p.partNumber).usages.push({ mark: entry.mark, markName: entry.name, qty: p.qty });
+    }
+  }
+
+  return byPart;
+}
