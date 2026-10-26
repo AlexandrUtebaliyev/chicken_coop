@@ -8,6 +8,7 @@ import {
   SOSTAV_COLUMNS,
   SOSTAV_REQUIRED_KEYS,
   STATUS,
+  STATUS_ORDER,
   STAGE_KEYS,
 } from './config.js';
 
@@ -192,6 +193,42 @@ export function computeStatus({ ordered, made, painted, ready, shipped }) {
   if (painted > 0) return STATUS.PAINTING;
   if (made > 0) return STATUS.MAKING;
   return STATUS.NOT_STARTED;
+}
+
+// «Статус» марки (из таблицы или computeStatus) — это ОДНА финальная метка:
+// например, марка с частичной отгрузкой, но ещё не готовая полностью,
+// получает статус «Готово частично», а не «Отгружено» — отгрузка «теряется»
+// за более ранним этапом. matchesStageActivity проверяет фактические цифры
+// по каждому этапу независимо, поэтому одна марка может подходить сразу под
+// несколько меток (есть и изготовление, и отгрузка одновременно).
+export function matchesStageActivity(mark, statusLabel) {
+  switch (statusLabel) {
+    case STATUS.NOT_STARTED:
+      return mark.made === 0 && mark.painted === 0 && mark.ready === 0 && mark.shipped === 0;
+    case STATUS.MAKING:
+      return mark.made > 0;
+    case STATUS.PAINTING:
+      return mark.painted > 0;
+    case STATUS.PARTIAL:
+      return mark.ready > 0 && mark.ready < mark.ordered;
+    case STATUS.DONE:
+      return mark.ordered > 0 && mark.ready >= mark.ordered;
+    case STATUS.SHIPPED:
+      return mark.shipped > 0;
+    default:
+      return false;
+  }
+}
+
+export function computeStageActivityCounts(marks) {
+  const counts = {};
+  for (const label of STATUS_ORDER) counts[label] = 0;
+  for (const m of marks) {
+    for (const label of STATUS_ORDER) {
+      if (matchesStageActivity(m, label)) counts[label] += 1;
+    }
+  }
+  return counts;
 }
 
 // ---------- Лист «Готовность» ----------
@@ -642,4 +679,17 @@ export function computePartsIndex(byMark) {
   }
 
   return byPart;
+}
+
+// Сколько штук этой детали нужно на один птичник: деталь может входить в
+// несколько марок, каждая марка имеет свою норму «На 1 птичник, шт» —
+// суммируем (кол-во детали на 1 экземпляр марки) × (марок на 1 птичник)
+// по всем маркам, где встречается деталь.
+export function computePartHouseDemand(partEntry, marks) {
+  const perHouseByMark = new Map(marks.map((m) => [m.mark, m.perHouse || 0]));
+  let perHouse = 0;
+  for (const u of partEntry.usages) {
+    perHouse += u.qty * (perHouseByMark.get(u.mark) || 0);
+  }
+  return perHouse;
 }

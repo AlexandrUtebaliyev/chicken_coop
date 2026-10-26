@@ -11,6 +11,8 @@ import {
   parseJournalData,
   parseSostavData,
   computePartsIndex,
+  matchesStageActivity,
+  computePartHouseDemand,
   computeOverallStats,
   computeGroups,
   computeHouses,
@@ -205,6 +207,38 @@ if (sh12Part) {
     true
   );
 }
+
+console.log('\n--- Деталь: сколько надо на птичники ---');
+// А1-1 (На 1 птичник=24), А1-2 (=2), А1-8 (=2); деталь №68 — qty=1 в каждой марке
+const demand68 = computePartHouseDemand(part68, marks);
+check('Деталь №68: надо на 1 птичник', demand68, 24 + 2 + 2);
+check('Деталь №68: надо на 10 птичников', demand68 * 10, 280);
+
+// Ш1-2 — марка из одной детали (№46), На 1 птичник=352, в составе qty=1
+const part46 = partsIndex.get('46');
+if (part46) {
+  const demand46 = computePartHouseDemand(part46, marks);
+  check('Деталь №46 (Ш1-2): надо на 1 птичник', demand46, 352);
+} else {
+  failCount += 1;
+  console.log('  FAIL Деталь №46 не найдена в индексе');
+}
+
+console.log('\n--- Чипы статусов: фактическая активность по этапам, не финальная метка ---');
+// Марка частично отгружена, но ещё не полностью готова (как К-1 на живой таблице):
+// статус у неё «Готово частично», но реальная отгрузка уже идёт — чип «Отгружено»
+// должен её находить, а не только полностью отгруженные марки.
+const partlyShipped = { ordered: 10, made: 8, painted: 6, ready: 5, shipped: 2 };
+check('частично отгруженная марка matches «Изготовление»', matchesStageActivity(partlyShipped, 'Изготовление'), true);
+check('частично отгруженная марка matches «Покраска»', matchesStageActivity(partlyShipped, 'Покраска'), true);
+check('частично отгруженная марка matches «Готово частично»', matchesStageActivity(partlyShipped, 'Готово частично'), true);
+check('частично отгруженная марка matches «Отгружено»', matchesStageActivity(partlyShipped, 'Отгружено'), true);
+check('частично отгруженная марка НЕ matches «Готово» (ещё не вся готова)', matchesStageActivity(partlyShipped, 'Готово'), false);
+check('частично отгруженная марка НЕ matches «Не начато»', matchesStageActivity(partlyShipped, 'Не начато'), false);
+
+const notStarted = { ordered: 10, made: 0, painted: 0, ready: 0, shipped: 0 };
+check('марка без активности matches только «Не начато»', matchesStageActivity(notStarted, 'Не начато'), true);
+check('марка без активности НЕ matches «Изготовление»', matchesStageActivity(notStarted, 'Изготовление'), false);
 
 console.log(`\n=== Итог: ${okCount} OK, ${failCount} FAIL ===`);
 if (failCount > 0) {

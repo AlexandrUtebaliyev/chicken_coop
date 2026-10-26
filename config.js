@@ -123,6 +123,7 @@ export const CACHE_KEYS = {
   sostavCsv: 'cc_sostav_csv',
   sostavTime: 'cc_sostav_time',
   filters: 'cc_filters',
+  plannedHouses: 'cc_planned_houses',
 };
 
 export const REFRESH_INTERVAL_MS = 5 * 60 * 1000;

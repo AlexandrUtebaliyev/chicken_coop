@@ -9,6 +9,9 @@ import {
   computeGroups,
   computeHouses,
   computePartsIndex,
+  computePartHouseDemand,
+  matchesStageActivity,
+  computeStageActivityCounts,
   getMarkHistory,
   naturalCompare,
   matchSearch,
@@ -22,6 +25,8 @@ import {
   setupAutoRefresh,
   saveFilters,
   loadFilters,
+  savePlannedHouses,
+  loadPlannedHouses,
 } from './sheet.js';
 
 const screenEl = document.getElementById('screen');
@@ -52,6 +57,7 @@ const state = {
   houseSearch: '',
   partsSearch: '',
   partsSort: 'number',
+  plannedHouses: null,
 };
 
 // ---------- Иконки (inline SVG) ----------
@@ -121,6 +127,35 @@ function pluralMarks(n) {
 
 function pluralParts(n) {
   return pluralRu(n, 'деталь', 'детали', 'деталей');
+}
+
+function pluralHouses(n) {
+  return pluralRu(n, 'птичник', 'птичника', 'птичников');
+}
+
+// Количество птичников для расчёта в «Деталях» — пользователь может задать
+// своё число (планирование), по умолчанию берём реальное число столбцов «Пт N».
+function getPlannedHouses() {
+  if (state.plannedHouses != null) return state.plannedHouses;
+  return state.houseColumns.length || 1;
+}
+
+function renderHouseCountControl() {
+  return `<div class="house-count-row">
+    <label for="planned-houses-input">Птичников для расчёта</label>
+    <input id="planned-houses-input" type="number" inputmode="numeric" min="1" max="999" value="${getPlannedHouses()}" />
+  </div>`;
+}
+
+function bindHouseCountControl(onChange) {
+  const input = document.getElementById('planned-houses-input');
+  if (!input) return;
+  input.addEventListener('change', (e) => {
+    const n = Math.max(1, Math.round(Number(e.target.value) || 1));
+    state.plannedHouses = n;
+    savePlannedHouses(n);
+    onChange();
+  });
 }
 
 const STATUS_VAR_KEY = {
@@ -340,8 +375,9 @@ function renderSummary() {
     </div>`;
   }).join('');
 
+  const activityCounts = computeStageActivityCounts(state.marks);
   const statusChips = STATUS_ORDER.map((s) => {
-    const count = stats.statusCounts[s] || 0;
+    const count = activityCounts[s] || 0;
     return `<a class="chip" href="#/marks?status=${encodeURIComponent(s)}">
       <span class="dot" style="color:${statusColor(s)}"></span>${escapeHtml(s)} · ${count}
     </a>`;
@@ -383,15 +419,24 @@ function renderSummary() {
 
 // ---------- Экран: Марки ----------
 
-function getFilteredMarks() {
+// Марки, отфильтрованные по группе и поиску, но НЕ по статусу — на этом
+// наборе считаются числа на чипах статусов, чтобы они отражали именно то,
+// что сейчас выбрано в группе/поиске (иначе числа на чипах остаются
+// глобальными, даже когда выбрана конкретная группа — это и запутывает).
+function getGroupSearchFilteredMarks() {
   const f = state.filters;
   let list = state.marks;
-
-  if (f.status === 'errors') list = list.filter((m) => m.check);
-  else if (f.status !== 'all') list = list.filter((m) => m.status === f.status);
-
   if (f.group !== 'all') list = list.filter((m) => m.group === f.group);
   if (f.search) list = list.filter((m) => matchSearch(f.search, m.mark, m.name));
+  return list;
+}
+
+function getFilteredMarks() {
+  const f = state.filters;
+  let list = getGroupSearchFilteredMarks();
+
+  if (f.status === 'errors') list = list.filter((m) => m.check);
+  else if (f.status !== 'all') list = list.filter((m) => matchesStageActivity(m, f.status));
 
   const sorted = [...list];
   if (f.sort === 'mark') sorted.sort((a, b) => naturalCompare(a.mark, b.mark));
@@ -414,6 +459,10 @@ function renderStackBar(m) {
   </div>`;
 }
 
+function renderStageSummaryLine(m) {
+  return `<div class="mark-order-line">Изг ${formatQty(m.made)} · Покр ${formatQty(m.painted)} · Гот ${formatQty(m.ready)} · Отгр ${formatQty(m.shipped)}</div>`;
+}
+
 function renderMarkListItem(m) {
   const pct = Math.round(m.readinessPct * 100);
   return `
@@ -425,6 +474,7 @@ function renderMarkListItem(m) {
         </div>
         <div class="mark-name">${escapeHtml(m.name)}</div>
         <div class="mark-order-line">Заказано ${formatQty(m.ordered)} шт · ${formatWeight(m.orderWeight)}</div>
+        ${renderStageSummaryLine(m)}
         ${renderStackBar(m)}
         ${m.check ? `<div class="mark-error-line">${escapeHtml(m.check)}</div>` : ''}
       </div>
@@ -444,14 +494,21 @@ function renderMarksList(query) {
 
 function renderMarksBody() {
   const f = state.filters;
-  const stats = computeOverallStats(state.marks);
+  // Числа на чипах — по маркам, уже отфильтрованным группой/поиском (но не статусом),
+  // чтобы они показывали «сколько из того, что сейчас видно» в каждом статусе.
+  // Считаем по фактическим цифрам этапов (matchesStageActivity), а не по
+  // одной финальной метке «Статус» — иначе, например, частично отгруженная
+  // марка (Готово частично, но уже что-то отгружено) не попадала бы в «Отгружено».
+  const groupSearchFiltered = getGroupSearchFilteredMarks();
+  const stats = computeOverallStats(groupSearchFiltered);
+  const activityCounts = computeStageActivityCounts(groupSearchFiltered);
   const groups = computeGroups(state.marks);
   const filtered = getFilteredMarks();
 
   const chipsHtml = [
     `<button class="chip ${f.status === 'all' ? 'active' : ''}" data-filter-status="all">Все · ${stats.marksCount}</button>`,
     ...STATUS_ORDER.map((s) => {
-      const count = stats.statusCounts[s] || 0;
+      const count = activityCounts[s] || 0;
       const active = f.status === s;
       return `<button class="chip ${active ? 'active' : ''}" data-filter-status="${escapeHtml(s)}"><span class="dot" style="color:${statusColor(s)}"></span>${escapeHtml(s)} · ${count}</button>`;
     }),
@@ -795,6 +852,7 @@ function renderPartListItem(p) {
   const dims = [p.width, p.length].filter((v) => v != null).map((v) => formatQty(v)).join('×');
   const metaBits = [dims ? `${dims} мм` : '', p.steelGrade].filter(Boolean).join(' · ');
   const drawing = state.partDrawings ? state.partDrawings[p.partNumber] : null;
+  const perHouse = computePartHouseDemand(p, state.marks);
   return `<a class="mark-card" href="#/part/${encodeURIComponent(p.partNumber)}">
     <div class="mark-main">
       <div class="mark-code-row">
@@ -804,6 +862,7 @@ function renderPartListItem(p) {
       </div>
       <div class="mark-name">${escapeHtml(p.profile || '—')}</div>
       ${metaBits ? `<div class="mark-order-line">${escapeHtml(metaBits)}</div>` : ''}
+      <div class="mark-order-line">${perHouse > 0 ? `На 1 птичник: ${formatQty(perHouse)} шт` : 'Не используется в птичниках'}</div>
     </div>
   </a>`;
 }
@@ -824,6 +883,7 @@ function renderPartsListBody() {
     : '<div class="empty-state">Ничего не найдено.</div>';
 
   screenEl.innerHTML = `
+    ${renderHouseCountControl()}
     <div class="search-box">
       ${icon('search')}
       <input id="part-search" type="search" placeholder="Поиск по номеру детали или профилю" value="${escapeHtml(search)}" />
@@ -854,6 +914,8 @@ function bindPartsListEvents() {
     state.partsSort = e.target.value;
     renderPartsListBody();
   });
+
+  bindHouseCountControl(renderPartsListBody);
 }
 
 function renderPartsList() {
@@ -908,6 +970,7 @@ function renderPartDetail(partNumber) {
   const dims = [p.width, p.length].filter((v) => v != null).map((v) => formatQty(v)).join('×');
   const metaBits = [dims ? `${dims} мм` : '', p.steelGrade].filter(Boolean).join(' · ');
   const marksSorted = [...p.usages].sort((a, b) => naturalCompare(a.mark, b.mark));
+  const perHouse = computePartHouseDemand(p, state.marks);
 
   screenEl.innerHTML = `
     <div class="card">
@@ -922,9 +985,23 @@ function renderPartDetail(partNumber) {
       ${drawing ? `<a class="drawing-link-btn" href="${escapeHtml(drawing.viewUrl)}" target="_blank" rel="noopener">${icon('drawing')}<span>Чертёж детали</span></a>` : ''}
     </div>
 
+    <h2 class="section-title">Нужно на птичники</h2>
+    ${renderHouseDemandCard(perHouse)}
+
     <h2 class="section-title">Входит в ${marksSorted.length} ${pluralMarks(marksSorted.length)}</h2>
     ${marksSorted.map(renderPartUsageRow).join('')}
   `;
+
+  bindHouseCountControl(() => renderPartDetail(partNumber));
+}
+
+function renderHouseDemandCard(perHouse) {
+  const n = getPlannedHouses();
+  return `<div class="card">
+    <div class="demand-row"><span>На 1 птичник</span><span class="demand-value">${formatQty(perHouse)} шт</span></div>
+    ${renderHouseCountControl()}
+    <div class="demand-row"><span>На ${n} ${pluralHouses(n)}</span><span class="demand-value">${formatQty(perHouse * n)} шт</span></div>
+  </div>`;
 }
 
 // ---------- Диспетчер ----------
@@ -1006,6 +1083,7 @@ function renderShell() {
 
 async function init() {
   state.filters = loadFilters() || defaultFilters();
+  state.plannedHouses = loadPlannedHouses();
   renderShell();
 
   refreshBtn.addEventListener('click', () => loadData());

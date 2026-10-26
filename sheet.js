@@ -138,3 +138,24 @@ export function loadFilters() {
     return null;
   }
 }
+
+// Количество птичников, под которое пользователь хочет планировать закупку
+// деталей (экран «Детали») — не обязано совпадать со столбцами «Пт N» в
+// таблице (даёт планировать на будущее расширение, не редактируя таблицу).
+export function savePlannedHouses(n) {
+  try {
+    localStorage.setItem(CACHE_KEYS.plannedHouses, String(n));
+  } catch (e) {
+    // игнорируем — значение просто не запомнится
+  }
+}
+
+export function loadPlannedHouses() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEYS.plannedHouses);
+    const n = raw ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch (e) {
+    return null;
+  }
+}
