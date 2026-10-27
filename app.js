@@ -401,6 +401,7 @@ function renderSummary() {
           <div class="group-info">
             <div class="group-name">${escapeHtml(g.name || '—')}</div>
             <div class="group-stats">${g.count} марок · ${formatQty(g.orderedQty)} шт · ${formatWeight(g.orderedWeight)}</div>
+            <div class="group-stats">Изг ${formatQty(g.stageQty.made)} · Покр ${formatQty(g.stageQty.painted)} · Гот ${formatQty(g.stageQty.ready)} · Отгр ${formatQty(g.stageQty.shipped)}</div>
           </div>
           <span class="group-pct" style="color:var(--status-making)">${pctMade}%</span>
         </a>`;
